@@ -413,6 +413,7 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator,
                     //
                     // TODO: this should be removed after we decouple caching with emitting
                     stateMgr.flushCache();
+                    stateMgr.preCommit();
                     recordCollector.flush();
                     hasPendingTxCommit = eosEnabled;
 
@@ -500,7 +501,6 @@ public class StreamTask extends AbstractTask implements ProcessorNodePunctuator,
 
             case RESTORING:
             case SUSPENDED:
-                maybeCheckpoint(enforceCheckpoint);
                 log.debug("Finalized commit for {} task with enforce checkpoint {}", state(), enforceCheckpoint);
 
                 break;

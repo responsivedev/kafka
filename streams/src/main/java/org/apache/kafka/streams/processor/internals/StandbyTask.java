@@ -295,7 +295,7 @@ public class StandbyTask extends AbstractTask implements Task {
     public boolean commitNeeded() {
         // for standby tasks committing is the same as checkpointing,
         // so we only need to commit if we want to checkpoint
-        return StateManagerUtil.checkpointNeeded(false, offsetSnapshotSinceLastFlush, stateMgr.changelogOffsets());
+        return false;
     }
 
     @Override

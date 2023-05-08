@@ -628,6 +628,24 @@ public class ProcessorStateManager implements StateManager {
         }
     }
 
+    public void preCommit() {
+        for (final StateStoreMetadata storeMetadata : stores.values()) {
+            if (storeMetadata.commitCallback != null) {
+                try {
+                    storeMetadata.commitCallback.onCommit();
+                } catch (final Exception e) {
+                    throw new ProcessorStateException(
+                      format("%sException thrown from user preCommit callback for store %s",
+                             logPrefix, storeMetadata.stateStore.name()),
+                      e
+                    );
+                }
+            } else {
+                log.warn("{}No commit callback registered for store {}", logPrefix, storeMetadata.stateStore.name());
+            }
+        }
+    }
+
     @Override
     public void checkpoint() {
         // checkpoint those stores that are only logged and persistent to the checkpoint file

@@ -54,29 +54,6 @@ final class StateManagerUtil {
         return (isTimestamped(store) && !isVersioned(store)) ? rawValueToTimestampedValue() : identity();
     }
 
-    static boolean checkpointNeeded(final boolean enforceCheckpoint,
-                                    final Map<TopicPartition, Long> oldOffsetSnapshot,
-                                    final Map<TopicPartition, Long> newOffsetSnapshot) {
-        // we should always have the old snapshot post completing the register state stores;
-        // if it is null it means the registration is not done and hence we should not overwrite the checkpoint
-        if (oldOffsetSnapshot == null) {
-            return false;
-        }
-
-        if (enforceCheckpoint)
-            return true;
-
-        // we can checkpoint if the difference between the current and the previous snapshot is large enough
-        long totalOffsetDelta = 0L;
-        for (final Map.Entry<TopicPartition, Long> entry : newOffsetSnapshot.entrySet()) {
-            totalOffsetDelta += entry.getValue() - oldOffsetSnapshot.getOrDefault(entry.getKey(), 0L);
-        }
-
-        // when enforcing checkpoint is required, we should overwrite the checkpoint if it is different from the old one;
-        // otherwise, we only overwrite the checkpoint if it is largely different from the old one
-        return totalOffsetDelta > OFFSET_DELTA_THRESHOLD_FOR_CHECKPOINT;
-    }
-
     /**
      * @throws TaskCorruptedException if the state cannot be reused (with EOS) and needs to be reset
      * @throws StreamsException If the store's changelog does not contain the partition
