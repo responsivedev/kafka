@@ -19,6 +19,7 @@ package org.apache.kafka.streams.kstream;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.processor.StateStore;
+import org.apache.kafka.streams.state.DSLStoreProvider;
 import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.SessionBytesStoreSupplier;
@@ -65,6 +66,7 @@ public class Materialized<K, V, S extends StateStore> {
     protected Map<String, String> topicConfig = new HashMap<>();
     protected Duration retention;
     public StoreType storeType;
+    public DSLStoreProvider storeProvider;
 
     // the built-in state store types
     public enum StoreType {
@@ -107,7 +109,7 @@ public class Materialized<K, V, S extends StateStore> {
      * @param <K>       key type of the store
      * @param <V>       value type of the store
      * @param <S>       type of the {@link StateStore}
-     * @return a new {@link Materialized} instance with the given storeName
+     * @return a new {@link Materialized} instance with the given storeType
      */
     public static <K, V, S extends StateStore> Materialized<K, V, S> as(final StoreType storeType) {
         Objects.requireNonNull(storeType, "store type can't be null");
