@@ -253,27 +253,34 @@ public class SessionWindowedKStreamImpl<K, V> extends AbstractStream<K, V> imple
                                                        + " grace=[" + windows.gracePeriodMs() + "],"
                                                        + " retention=[" + retentionPeriod + "]");
             }
-
-            switch (materialized.storeType()) {
-                case IN_MEMORY:
-                    supplier = Stores.inMemorySessionStore(
-                        materialized.storeName(),
-                        Duration.ofMillis(retentionPeriod)
-                    );
-                    break;
-                case ROCKS_DB:
-                    supplier = emitStrategy.type() == EmitStrategy.StrategyType.ON_WINDOW_CLOSE ?
-                        new RocksDbTimeOrderedSessionBytesStoreSupplier(
-                            materialized.storeName(),
-                            retentionPeriod,
-                            true) :
-                        Stores.persistentSessionStore(
+            if (materialized.storeProvider() != null) {
+                supplier = materialized.storeProvider().sessionStore(
+                    materialized.storeName(),
+                    Duration.ofMillis(retentionPeriod));
+            } else {
+                switch (materialized.storeType()) {
+                    case IN_MEMORY:
+                        supplier = Stores.inMemorySessionStore(
                             materialized.storeName(),
                             Duration.ofMillis(retentionPeriod)
                         );
-                    break;
-                default:
-                    throw new IllegalStateException("Unknown store type: " + materialized.storeType());
+                        break;
+                    case ROCKS_DB:
+                        // TODO(KIP-954): should the DSLStoreProvider include an API for this or is
+                        //  it a specific optimization that only applies to rocksdb?
+                        supplier = emitStrategy.type() == EmitStrategy.StrategyType.ON_WINDOW_CLOSE ?
+                            new RocksDbTimeOrderedSessionBytesStoreSupplier(
+                                materialized.storeName(),
+                                retentionPeriod,
+                                true) :
+                            Stores.persistentSessionStore(
+                                materialized.storeName(),
+                                Duration.ofMillis(retentionPeriod)
+                            );
+                        break;
+                    default:
+                        throw new IllegalStateException("Unknown store type: " + materialized.storeType());
+                }
             }
         }
 

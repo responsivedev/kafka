@@ -113,26 +113,33 @@ public class SlidingWindowedCogroupedKStreamImpl<K, V> extends AbstractStream<K,
                     + " retention=[" + retentionPeriod
                     + "]");
             }
-
-            switch (materialized.storeType()) {
-                case IN_MEMORY:
-                    supplier = Stores.inMemoryWindowStore(
-                        materialized.storeName(),
-                        Duration.ofMillis(retentionPeriod),
-                        Duration.ofMillis(windows.timeDifferenceMs()),
-                        false
-                    );
-                    break;
-                case ROCKS_DB:
-                    supplier = Stores.persistentTimestampedWindowStore(
-                        materialized.storeName(),
-                        Duration.ofMillis(retentionPeriod),
-                        Duration.ofMillis(windows.timeDifferenceMs()),
-                        false
-                    );
-                    break;
-                default:
-                    throw new IllegalStateException("Unknown store type: " + materialized.storeType());
+            if (materialized.storeProvider() != null) {
+                supplier = materialized.storeProvider().timestampedWindowStore(
+                    materialized.storeName(),
+                    Duration.ofMillis(retentionPeriod),
+                    Duration.ofMillis(windows.timeDifferenceMs()),
+                    false);
+            } else {
+                switch (materialized.storeType()) {
+                    case IN_MEMORY:
+                        supplier = Stores.inMemoryWindowStore(
+                            materialized.storeName(),
+                            Duration.ofMillis(retentionPeriod),
+                            Duration.ofMillis(windows.timeDifferenceMs()),
+                            false
+                        );
+                        break;
+                    case ROCKS_DB:
+                        supplier = Stores.persistentTimestampedWindowStore(
+                            materialized.storeName(),
+                            Duration.ofMillis(retentionPeriod),
+                            Duration.ofMillis(windows.timeDifferenceMs()),
+                            false
+                        );
+                        break;
+                    default:
+                        throw new IllegalStateException("Unknown store type: " + materialized.storeType());
+                }
             }
         }
 

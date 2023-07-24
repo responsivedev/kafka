@@ -26,6 +26,7 @@ import org.apache.kafka.streams.internals.StreamsConfigUtils;
 import org.apache.kafka.streams.processor.TimestampExtractor;
 
 import org.apache.kafka.streams.processor.internals.namedtopology.KafkaStreamsNamedTopologyWrapper;
+import org.apache.kafka.streams.state.DSLStoreProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.Properties;
@@ -214,6 +215,11 @@ public class TopologyConfig extends AbstractConfig {
         } else {
             storeType = globalAppConfigs.getString(DEFAULT_DSL_STORE_CONFIG);
         }
+    }
+
+    public DSLStoreProvider storeProvider() {
+        // TODO(KIP-954): get this from StreamsConfig (or TopologyConfig overrides)
+        return null;
     }
 
     public Materialized.StoreType parseStoreType() {

@@ -250,34 +250,43 @@ public class TimeWindowedKStreamImpl<K, V, W extends Window> extends AbstractStr
                         + " grace=[" + windows.gracePeriodMs() + "],"
                         + " retention=[" + retentionPeriod + "]");
             }
-
-            switch (materialized.storeType()) {
-                case IN_MEMORY:
-                    supplier = Stores.inMemoryWindowStore(
-                        materialized.storeName(),
-                        Duration.ofMillis(retentionPeriod),
-                        Duration.ofMillis(windows.size()),
-                        false
-                    );
-                    break;
-                case ROCKS_DB:
-                    supplier = emitStrategy.type() == StrategyType.ON_WINDOW_CLOSE ?
-                        RocksDbIndexedTimeOrderedWindowBytesStoreSupplier.create(
-                            materialized.storeName(),
-                            Duration.ofMillis(retentionPeriod),
-                            Duration.ofMillis(windows.size()),
-                            false,
-                            false
-                        ) :
-                        Stores.persistentTimestampedWindowStore(
+            if (materialized.storeProvider() != null) {
+                supplier = materialized.storeProvider().timestampedWindowStore(
+                    materialized.storeName(),
+                    Duration.ofMillis(retentionPeriod),
+                    Duration.ofMillis(windows.size()),
+                    false);
+            } else {
+                switch (materialized.storeType()) {
+                    case IN_MEMORY:
+                        supplier = Stores.inMemoryWindowStore(
                             materialized.storeName(),
                             Duration.ofMillis(retentionPeriod),
                             Duration.ofMillis(windows.size()),
                             false
-                    );
-                    break;
-                default:
-                    throw new IllegalStateException("Unknown store type: " + materialized.storeType());
+                        );
+                        break;
+                    case ROCKS_DB:
+                        // TODO(KIP-954): should the DSLStoreProvider include an API for this or is
+                        //  it a specific optimization that only applies to rocksdb?
+                        supplier = emitStrategy.type() == StrategyType.ON_WINDOW_CLOSE ?
+                            RocksDbIndexedTimeOrderedWindowBytesStoreSupplier.create(
+                                materialized.storeName(),
+                                Duration.ofMillis(retentionPeriod),
+                                Duration.ofMillis(windows.size()),
+                                false,
+                                false
+                            ) :
+                            Stores.persistentTimestampedWindowStore(
+                                materialized.storeName(),
+                                Duration.ofMillis(retentionPeriod),
+                                Duration.ofMillis(windows.size()),
+                                false
+                            );
+                        break;
+                    default:
+                        throw new IllegalStateException("Unknown store type: " + materialized.storeType());
+                }
             }
         }
 

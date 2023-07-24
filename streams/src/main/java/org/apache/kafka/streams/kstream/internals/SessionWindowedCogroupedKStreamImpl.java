@@ -122,21 +122,27 @@ public class SessionWindowedCogroupedKStreamImpl<K, V> extends
                     + " retention=[" + retentionPeriod + "]");
             }
 
-            switch (materialized.storeType()) {
-                case IN_MEMORY:
-                    supplier = Stores.inMemorySessionStore(
-                        materialized.storeName(),
-                        Duration.ofMillis(retentionPeriod)
-                    );
-                    break;
-                case ROCKS_DB:
-                    supplier = Stores.persistentSessionStore(
-                        materialized.storeName(),
-                        Duration.ofMillis(retentionPeriod)
-                    );
-                    break;
-                default:
-                    throw new IllegalStateException("Unknown store type: " + materialized.storeType());
+            if (materialized.storeProvider() != null) {
+                supplier = materialized.storeProvider().sessionStore(
+                    materialized.storeName(),
+                    Duration.ofMillis(retentionPeriod));
+            } else {
+                switch (materialized.storeType()) {
+                    case IN_MEMORY:
+                        supplier = Stores.inMemorySessionStore(
+                            materialized.storeName(),
+                            Duration.ofMillis(retentionPeriod)
+                        );
+                        break;
+                    case ROCKS_DB:
+                        supplier = Stores.persistentSessionStore(
+                            materialized.storeName(),
+                            Duration.ofMillis(retentionPeriod)
+                        );
+                        break;
+                    default:
+                        throw new IllegalStateException("Unknown store type: " + materialized.storeType());
+                }
             }
         }
 

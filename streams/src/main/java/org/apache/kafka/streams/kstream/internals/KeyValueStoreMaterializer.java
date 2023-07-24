@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.streams.kstream.internals;
 
+import java.time.Duration;
 import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
 import org.apache.kafka.streams.state.KeyValueStore;
@@ -46,15 +47,19 @@ public class KeyValueStoreMaterializer<K, V> {
     public StoreBuilder<?> materialize() {
         KeyValueBytesStoreSupplier supplier = (KeyValueBytesStoreSupplier) materialized.storeSupplier();
         if (supplier == null) {
-            switch (materialized.storeType()) {
-                case IN_MEMORY:
-                    supplier = Stores.inMemoryKeyValueStore(materialized.storeName());
-                    break;
-                case ROCKS_DB:
-                    supplier = Stores.persistentTimestampedKeyValueStore(materialized.storeName());
-                    break;
-                default:
-                    throw new IllegalStateException("Unknown store type: " + materialized.storeType());
+            if (materialized.storeProvider() != null) {
+                supplier = materialized.storeProvider().timestampedKeyValueStore(materialized.storeName());
+            } else {
+                switch (materialized.storeType()) {
+                    case IN_MEMORY:
+                        supplier = Stores.inMemoryKeyValueStore(materialized.storeName());
+                        break;
+                    case ROCKS_DB:
+                        supplier = Stores.persistentTimestampedKeyValueStore(materialized.storeName());
+                        break;
+                    default:
+                        throw new IllegalStateException("Unknown store type: " + materialized.storeType());
+                }
             }
         }
 
