@@ -24,7 +24,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertThrows;
 
-public class AssignorConfigurationTest {
+public class TaskAssignorConfigsTest {
 
     @Test
     public void configsShouldRejectZeroWarmups() {

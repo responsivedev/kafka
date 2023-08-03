@@ -25,6 +25,8 @@ import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.StreamsConfig.InternalConfig;
+import org.apache.kafka.streams.processor.assignment.TaskAssignor;
+import org.apache.kafka.streams.processor.assignment.TaskAssignorConfigs;
 import org.apache.kafka.streams.processor.internals.ClientUtils;
 import org.apache.kafka.streams.processor.internals.InternalTopicManager;
 import org.slf4j.Logger;
@@ -34,12 +36,10 @@ import java.util.Map;
 
 import static org.apache.kafka.common.utils.Utils.getHost;
 import static org.apache.kafka.common.utils.Utils.getPort;
-import static org.apache.kafka.streams.StreamsConfig.InternalConfig.INTERNAL_TASK_ASSIGNOR_CLASS;
+import static org.apache.kafka.streams.StreamsConfig.TASK_ASSIGNOR_CLASS_CONFIG;
 import static org.apache.kafka.streams.processor.internals.assignment.StreamsAssignmentProtocolVersions.LATEST_SUPPORTED_VERSION;
 
 public final class AssignorConfiguration {
-    private final String taskAssignorClass;
-
     private final String logPrefix;
     private final Logger log;
     private final ReferenceContainer referenceContainer;
@@ -76,15 +76,6 @@ public final class AssignorConfiguration {
             }
 
             referenceContainer = (ReferenceContainer) o;
-        }
-
-        {
-            final String o = (String) configs.get(INTERNAL_TASK_ASSIGNOR_CLASS);
-            if (o == null) {
-                taskAssignorClass = HighAvailabilityTaskAssignor.class.getName();
-            } else {
-                taskAssignorClass = o;
-            }
         }
     }
 
@@ -225,16 +216,18 @@ public final class AssignorConfiguration {
         return new CopartitionedTopicsEnforcer(logPrefix);
     }
 
-    public AssignmentConfigs assignmentConfigs() {
-        return new AssignmentConfigs(streamsConfig);
+    public TaskAssignorConfigs assignmentConfigs() {
+        return new TaskAssignorConfigs(streamsConfig);
     }
 
     public TaskAssignor taskAssignor() {
+        final String taskAssignorClass = streamsConfig.getString(TASK_ASSIGNOR_CLASS_CONFIG);
+
         try {
             return Utils.newInstance(taskAssignorClass, TaskAssignor.class);
         } catch (final ClassNotFoundException e) {
             throw new IllegalArgumentException(
-                "Expected an instantiable class name for " + INTERNAL_TASK_ASSIGNOR_CLASS,
+                "Expected an instantiable class name for " + TASK_ASSIGNOR_CLASS_CONFIG,
                 e
             );
         }
