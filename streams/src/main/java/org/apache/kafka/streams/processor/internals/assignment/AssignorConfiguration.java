@@ -19,27 +19,25 @@ package org.apache.kafka.streams.processor.internals.assignment;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.ConsumerPartitionAssignor.RebalanceProtocol;
 import org.apache.kafka.common.KafkaException;
-import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.StreamsConfig.InternalConfig;
+import org.apache.kafka.streams.processor.assignment.AssignmentConfigs;
+import org.apache.kafka.streams.processor.assignment.TaskAssignor;
 import org.apache.kafka.streams.processor.internals.ClientUtils;
 import org.apache.kafka.streams.processor.internals.InternalTopicManager;
 import org.slf4j.Logger;
 
-import java.util.List;
 import java.util.Map;
 
 import static org.apache.kafka.common.utils.Utils.getHost;
 import static org.apache.kafka.common.utils.Utils.getPort;
-import static org.apache.kafka.streams.StreamsConfig.InternalConfig.INTERNAL_TASK_ASSIGNOR_CLASS;
+import static org.apache.kafka.streams.StreamsConfig.TASK_ASSIGNOR_CLASS_CONFIG;
 import static org.apache.kafka.streams.processor.internals.assignment.StreamsAssignmentProtocolVersions.LATEST_SUPPORTED_VERSION;
 
 public final class AssignorConfiguration {
-    private final String taskAssignorClass;
-
     private final String logPrefix;
     private final Logger log;
     private final ReferenceContainer referenceContainer;
@@ -76,15 +74,6 @@ public final class AssignorConfiguration {
             }
 
             referenceContainer = (ReferenceContainer) o;
-        }
-
-        {
-            final String o = (String) configs.get(INTERNAL_TASK_ASSIGNOR_CLASS);
-            if (o == null) {
-                taskAssignorClass = HighAvailabilityTaskAssignor.class.getName();
-            } else {
-                taskAssignorClass = o;
-            }
         }
     }
 
@@ -230,11 +219,13 @@ public final class AssignorConfiguration {
     }
 
     public TaskAssignor taskAssignor() {
+        final String taskAssignorClass = streamsConfig.getString(TASK_ASSIGNOR_CLASS_CONFIG);
+
         try {
             return Utils.newInstance(taskAssignorClass, TaskAssignor.class);
         } catch (final ClassNotFoundException e) {
             throw new IllegalArgumentException(
-                "Expected an instantiable class name for " + INTERNAL_TASK_ASSIGNOR_CLASS,
+                "Expected an instantiable class name for " + TASK_ASSIGNOR_CLASS_CONFIG,
                 e
             );
         }
@@ -261,50 +252,4 @@ public final class AssignorConfiguration {
         void onAssignmentComplete(final boolean stable);
     }
 
-    public static class AssignmentConfigs {
-        public final long acceptableRecoveryLag;
-        public final int maxWarmupReplicas;
-        public final int numStandbyReplicas;
-        public final long probingRebalanceIntervalMs;
-        public final List<String> rackAwareAssignmentTags;
-
-        private AssignmentConfigs(final StreamsConfig configs) {
-            acceptableRecoveryLag = configs.getLong(StreamsConfig.ACCEPTABLE_RECOVERY_LAG_CONFIG);
-            maxWarmupReplicas = configs.getInt(StreamsConfig.MAX_WARMUP_REPLICAS_CONFIG);
-            numStandbyReplicas = configs.getInt(StreamsConfig.NUM_STANDBY_REPLICAS_CONFIG);
-            probingRebalanceIntervalMs = configs.getLong(StreamsConfig.PROBING_REBALANCE_INTERVAL_MS_CONFIG);
-            rackAwareAssignmentTags = configs.getList(StreamsConfig.RACK_AWARE_ASSIGNMENT_TAGS_CONFIG);
-        }
-
-        AssignmentConfigs(final Long acceptableRecoveryLag,
-                          final Integer maxWarmupReplicas,
-                          final Integer numStandbyReplicas,
-                          final Long probingRebalanceIntervalMs,
-                          final List<String> rackAwareAssignmentTags) {
-            this.acceptableRecoveryLag = validated(StreamsConfig.ACCEPTABLE_RECOVERY_LAG_CONFIG, acceptableRecoveryLag);
-            this.maxWarmupReplicas = validated(StreamsConfig.MAX_WARMUP_REPLICAS_CONFIG, maxWarmupReplicas);
-            this.numStandbyReplicas = validated(StreamsConfig.NUM_STANDBY_REPLICAS_CONFIG, numStandbyReplicas);
-            this.probingRebalanceIntervalMs = validated(StreamsConfig.PROBING_REBALANCE_INTERVAL_MS_CONFIG, probingRebalanceIntervalMs);
-            this.rackAwareAssignmentTags = validated(StreamsConfig.RACK_AWARE_ASSIGNMENT_TAGS_CONFIG, rackAwareAssignmentTags);
-        }
-
-        private static <T> T validated(final String configKey, final T value) {
-            final ConfigDef.Validator validator = StreamsConfig.configDef().configKeys().get(configKey).validator;
-            if (validator != null) {
-                validator.ensureValid(configKey, value);
-            }
-            return value;
-        }
-
-        @Override
-        public String toString() {
-            return "AssignmentConfigs{" +
-                "\n  acceptableRecoveryLag=" + acceptableRecoveryLag +
-                "\n  maxWarmupReplicas=" + maxWarmupReplicas +
-                "\n  numStandbyReplicas=" + numStandbyReplicas +
-                "\n  probingRebalanceIntervalMs=" + probingRebalanceIntervalMs +
-                "\n  rackAwareAssignmentTags=" + rackAwareAssignmentTags +
-                "\n}";
-        }
-    }
 }

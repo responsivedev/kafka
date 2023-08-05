@@ -46,6 +46,7 @@ import org.apache.kafka.streams.processor.FailOnInvalidTimestamp;
 import org.apache.kafka.streams.processor.TimestampExtractor;
 import org.apache.kafka.streams.processor.internals.DefaultKafkaClientSupplier;
 import org.apache.kafka.streams.processor.internals.StreamsPartitionAssignor;
+import org.apache.kafka.streams.processor.internals.assignment.HighAvailabilityTaskAssignor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -720,6 +721,13 @@ public class StreamsConfig extends AbstractConfig {
     public static final String STATE_DIR_CONFIG = "state.dir";
     private static final String STATE_DIR_DOC = "Directory location for state store. This path must be unique for each streams instance sharing the same underlying filesystem.";
 
+    /** {@code task.assignor.class} */
+    public static final String TASK_ASSIGNOR_CLASS_CONFIG = "task.assignor.class";
+    private static final String TASK_ASSIGNOR_CLASS_DOC = "A task assignor class or class name implementing the <@link TaskAssignor> interface"
+        + " that will be used to assign tasks to client nodes during a rebalance. Note that tasks will be distributed equally among the"
+        + "StreamThreads within each client with maximal stickiness ie returning as many tasks as possible to their previous owner on that"
+        + "client node. Defaults to the <@link HighAvailabilityTaskAssignor> class.";
+
     /** {@code task.timeout.ms} */
     public static final String TASK_TIMEOUT_MS_CONFIG = "task.timeout.ms";
     public static final String TASK_TIMEOUT_MS_DOC = "The maximum amount of time in milliseconds a task might stall due to internal errors and retries until an error is raised. " +
@@ -1065,6 +1073,11 @@ public class StreamsConfig extends AbstractConfig {
                     10 * 60 * 1000L,
                     Importance.LOW,
                     STATE_CLEANUP_DELAY_MS_DOC)
+            .define(TASK_ASSIGNOR_CLASS_CONFIG,
+                    Type.CLASS,
+                    HighAvailabilityTaskAssignor.class.getName(),
+                    Importance.LOW,
+                    TASK_ASSIGNOR_CLASS_DOC)
             .define(UPGRADE_FROM_CONFIG,
                     ConfigDef.Type.STRING,
                     null,
