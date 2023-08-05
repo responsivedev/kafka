@@ -16,10 +16,8 @@
  */
 package org.apache.kafka.streams.processor.assignment;
 
-import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.SortedSet;
 import java.util.UUID;
 import org.apache.kafka.common.TopicPartition;
@@ -59,6 +57,16 @@ public interface NodeState {
    * @return the consumer on this node that previously owned this partition in the previous rebalance
    */
   String previousOwnerForPartition(final TopicPartition topicPartition);
+
+  /**
+   * @return the set of all active tasks owned by consumers on this node since the previous rebalance
+   */
+  SortedSet<TaskId> previousActiveTasks();
+
+  /**
+   * @return the set of all standby tasks owned by consumers on this node since the previous rebalance
+   */
+  SortedSet<TaskId> previousStandbyTasks();
 
   /**
    * Returns the total lag across all logged stores in the task. Equal to the end offset sum if this client

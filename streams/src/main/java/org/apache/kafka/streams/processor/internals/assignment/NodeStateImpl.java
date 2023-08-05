@@ -23,7 +23,6 @@ import static org.apache.kafka.streams.processor.internals.assignment.Subscripti
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -60,8 +59,8 @@ public class NodeStateImpl implements NodeState {
   private final PreviousTaskAssignment previousTaskAssignment = new PreviousTaskAssignment();
 
   private static class PreviousTaskAssignment {
-    public final Set<TaskId> active = new TreeSet<>();
-    public final Set<TaskId> standby = new TreeSet<>();
+    public final SortedSet<TaskId> active = new TreeSet<>();
+    public final SortedSet<TaskId> standby = new TreeSet<>();
 
     boolean initialized() {
       return !(active.isEmpty() && standby.isEmpty());
@@ -118,6 +117,25 @@ public class NodeStateImpl implements NodeState {
   @Override
   public String previousOwnerForPartition(final TopicPartition topicPartition) {
     return ownedPartitionsToConsumer.get(topicPartition);
+  }
+
+  @Override
+  public SortedSet<TaskId> previousActiveTasks() {
+    return previousTaskAssignment.active;
+  }
+
+  @Override
+  public SortedSet<TaskId> previousStandbyTasks() {
+    return previousTaskAssignment.standby;
+  }
+
+  @Override
+  public long lagFor(final TaskId task) {
+    final Long totalLag = statefulTaskLagSums.get(task);
+    if (totalLag == null) {
+      throw new IllegalStateException("Tried to lookup lag for unknown task " + task);
+    }
+    return totalLag;
   }
 
   @Override
@@ -229,15 +247,6 @@ public class NodeStateImpl implements NodeState {
         statefulTaskLagSums.put(task, endOffsetSum - offsetSum);
       }
     }
-  }
-
-  @Override
-  public long lagFor(final TaskId task) {
-    final Long totalLag = statefulTaskLagSums.get(task);
-    if (totalLag == null) {
-      throw new IllegalStateException("Tried to lookup lag for unknown task " + task);
-    }
-    return totalLag;
   }
 
   @Override
