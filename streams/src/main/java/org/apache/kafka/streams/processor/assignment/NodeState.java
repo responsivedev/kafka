@@ -29,6 +29,11 @@ import org.apache.kafka.streams.state.HostInfo;
 public interface NodeState {
 
   /**
+   * @return a new {@link NodeAssignment} that can be used to assign tasks for this node
+   */
+  NodeAssignment newAssignmentForNode();
+
+  /**
    * @return the processId of the application instance running on this node
    */
   UUID processId();

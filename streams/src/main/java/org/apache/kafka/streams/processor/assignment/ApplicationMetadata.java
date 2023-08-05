@@ -25,16 +25,22 @@ import org.apache.kafka.streams.processor.TaskId;
 public interface ApplicationMetadata {
 
     /**
-     * @param computeTaskLags whether to compute task lags for each {@link NodeState}.
-     *                        NOTE: if true, a remote call will be made to fetch changelog end offsets
      * @return a map from the {@code processId} to {@link NodeState} for all Streams client nodes in this app
      */
-    Map<UUID, NodeState> nodeStates(final boolean computeTaskLags);
+    Map<UUID, ? extends NodeState> nodeStates();
+
+    /**
+     * Makes a remote call to fetch changelog topic end offsets and, if successful, uses the results to compute
+     * task lags for each {@link NodeState}.
+     *
+     * @return whether the end offset fetch and lag computation was successful
+     */
+    boolean computeTaskLags();
 
     /**
      * @return a simple container class with the Streams configs relevant to assignment
      */
-    TaskAssignorConfigs taskAssignorConfigs();
+    AssignmentConfigs assignmentConfigs();
 
     /**
      * @return the set of all tasks in this topology which must be assigned to a node
@@ -69,6 +75,6 @@ public interface ApplicationMetadata {
      *
      * @param nodeAssignments the current assignment of tasks to nodes
      */
-    void optimizeRackawareStandbyTasks(final Map<UUID, NodeAssignment> nodeAssignments);
+    void optimizeRackAwareStandbyTasks(final Map<UUID, NodeAssignment> nodeAssignments);
 
 }

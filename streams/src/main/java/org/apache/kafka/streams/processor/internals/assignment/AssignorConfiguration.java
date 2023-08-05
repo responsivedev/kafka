@@ -19,19 +19,17 @@ package org.apache.kafka.streams.processor.internals.assignment;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.ConsumerPartitionAssignor.RebalanceProtocol;
 import org.apache.kafka.common.KafkaException;
-import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.StreamsConfig.InternalConfig;
+import org.apache.kafka.streams.processor.assignment.AssignmentConfigs;
 import org.apache.kafka.streams.processor.assignment.TaskAssignor;
-import org.apache.kafka.streams.processor.assignment.TaskAssignorConfigs;
 import org.apache.kafka.streams.processor.internals.ClientUtils;
 import org.apache.kafka.streams.processor.internals.InternalTopicManager;
 import org.slf4j.Logger;
 
-import java.util.List;
 import java.util.Map;
 
 import static org.apache.kafka.common.utils.Utils.getHost;
@@ -216,8 +214,8 @@ public final class AssignorConfiguration {
         return new CopartitionedTopicsEnforcer(logPrefix);
     }
 
-    public TaskAssignorConfigs assignmentConfigs() {
-        return new TaskAssignorConfigs(streamsConfig);
+    public AssignmentConfigs assignmentConfigs() {
+        return new AssignmentConfigs(streamsConfig);
     }
 
     public TaskAssignor taskAssignor() {
@@ -254,50 +252,4 @@ public final class AssignorConfiguration {
         void onAssignmentComplete(final boolean stable);
     }
 
-    public static class AssignmentConfigs {
-        public final long acceptableRecoveryLag;
-        public final int maxWarmupReplicas;
-        public final int numStandbyReplicas;
-        public final long probingRebalanceIntervalMs;
-        public final List<String> rackAwareAssignmentTags;
-
-        private AssignmentConfigs(final StreamsConfig configs) {
-            acceptableRecoveryLag = configs.getLong(StreamsConfig.ACCEPTABLE_RECOVERY_LAG_CONFIG);
-            maxWarmupReplicas = configs.getInt(StreamsConfig.MAX_WARMUP_REPLICAS_CONFIG);
-            numStandbyReplicas = configs.getInt(StreamsConfig.NUM_STANDBY_REPLICAS_CONFIG);
-            probingRebalanceIntervalMs = configs.getLong(StreamsConfig.PROBING_REBALANCE_INTERVAL_MS_CONFIG);
-            rackAwareAssignmentTags = configs.getList(StreamsConfig.RACK_AWARE_ASSIGNMENT_TAGS_CONFIG);
-        }
-
-        AssignmentConfigs(final Long acceptableRecoveryLag,
-                          final Integer maxWarmupReplicas,
-                          final Integer numStandbyReplicas,
-                          final Long probingRebalanceIntervalMs,
-                          final List<String> rackAwareAssignmentTags) {
-            this.acceptableRecoveryLag = validated(StreamsConfig.ACCEPTABLE_RECOVERY_LAG_CONFIG, acceptableRecoveryLag);
-            this.maxWarmupReplicas = validated(StreamsConfig.MAX_WARMUP_REPLICAS_CONFIG, maxWarmupReplicas);
-            this.numStandbyReplicas = validated(StreamsConfig.NUM_STANDBY_REPLICAS_CONFIG, numStandbyReplicas);
-            this.probingRebalanceIntervalMs = validated(StreamsConfig.PROBING_REBALANCE_INTERVAL_MS_CONFIG, probingRebalanceIntervalMs);
-            this.rackAwareAssignmentTags = validated(StreamsConfig.RACK_AWARE_ASSIGNMENT_TAGS_CONFIG, rackAwareAssignmentTags);
-        }
-
-        private static <T> T validated(final String configKey, final T value) {
-            final ConfigDef.Validator validator = StreamsConfig.configDef().configKeys().get(configKey).validator;
-            if (validator != null) {
-                validator.ensureValid(configKey, value);
-            }
-            return value;
-        }
-
-        @Override
-        public String toString() {
-            return "AssignmentConfigs{" +
-                "\n  acceptableRecoveryLag=" + acceptableRecoveryLag +
-                "\n  maxWarmupReplicas=" + maxWarmupReplicas +
-                "\n  numStandbyReplicas=" + numStandbyReplicas +
-                "\n  probingRebalanceIntervalMs=" + probingRebalanceIntervalMs +
-                "\n  rackAwareAssignmentTags=" + rackAwareAssignmentTags +
-                "\n}";
-        }
-    }
 }

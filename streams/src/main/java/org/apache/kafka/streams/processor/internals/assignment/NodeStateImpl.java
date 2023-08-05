@@ -24,7 +24,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -35,6 +34,7 @@ import java.util.UUID;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.streams.processor.TaskId;
+import org.apache.kafka.streams.processor.assignment.NodeAssignment;
 import org.apache.kafka.streams.processor.assignment.NodeState;
 import org.apache.kafka.streams.processor.internals.Task;
 import org.apache.kafka.streams.state.HostInfo;
@@ -47,8 +47,9 @@ public class NodeStateImpl implements NodeState {
   private final Logger log;
 
   private final UUID processId;
-  private final HostInfo hostInfo;
   private final Map<String, String> clientTags;
+  private final long now;
+  private final HostInfo hostInfo;
 
   // Prefer sorted collections for debugging purposes
   private final Map<TaskId, Long> statefulTaskOffsetSums = new TreeMap<>();
@@ -76,18 +77,27 @@ public class NodeStateImpl implements NodeState {
     }
   }
 
-  public NodeStateImpl(final UUID processId, final String endPoint, final Map<String, String> clientTags) {
+  public NodeStateImpl(final UUID processId,
+                       final Map<String, String> clientTags,
+                       final long now,
+                       final String endPoint) {
     log = new LogContext(String.format("node [%s] ", processId)).logger(NodeStateImpl.class);
     hostInfo = HostInfo.buildFromEndpoint(endPoint);
 
     this.processId = processId;
     this.clientTags = clientTags;
+    this.now = now;
   }
 
   // Returns a stub node for the version probing edge case where the group leader (and thus assignor)
   // is on the older version and cannot read the metadata state from a "future" node's subscription
   public static NodeStateImpl futureVersionNode(final UUID processId) {
-    return new NodeStateImpl(processId, null, Collections.emptyMap());
+    return new NodeStateImpl(processId, Collections.emptyMap(), 0L, null);
+  }
+
+  @Override
+  public NodeAssignment newAssignmentForNode() {
+    return new NodeAssignmentImpl(this);
   }
 
   @Override
@@ -134,8 +144,7 @@ public class NodeStateImpl implements NodeState {
   }
 
   public void initializePrevTasks(final Map<TopicPartition, TaskId> taskForPartitionMap,
-                                  final boolean hasNamedTopologies,
-                                  final Map<TaskId, Long> taskEndOffsetSums) {
+                                  final boolean hasNamedTopologies) {
     if (previousTaskAssignment.initialized()) {
       log.error("Node state was already initialized:\n"
                     + "previousActiveTasks=({})\n"
@@ -147,8 +156,6 @@ public class NodeStateImpl implements NodeState {
     maybeFilterUnknownPrevTasksAndPartitions(taskForPartitionMap, hasNamedTopologies);
     initializePrevActiveTasksFromOwnedPartitions(taskForPartitionMap);
     initializeRemainingPrevTasksFromTaskOffsetSums();
-
-    statefulTaskLagSums.putAll(computeTaskLags(processId, taskEndOffsetSums));
   }
 
   private void maybeFilterUnknownPrevTasksAndPartitions(final Map<TopicPartition, TaskId> taskForPartitionMap,
@@ -201,9 +208,7 @@ public class NodeStateImpl implements NodeState {
   /**
    * Compute the lag for each stateful task, including tasks this client did not previously have.
    */
-  public Map<TaskId, Long> computeTaskLags(final UUID processId, final Map<TaskId, Long> allTaskEndOffsetSums) {
-    final Map<TaskId, Long> statefulTaskLagSums = new HashMap<>();
-
+  public void computeTaskLags(final Map<TaskId, Long> allTaskEndOffsetSums) {
     for (final Map.Entry<TaskId, Long> taskEntry : allTaskEndOffsetSums.entrySet()) {
       final TaskId task = taskEntry.getKey();
       final Long endOffsetSum = taskEntry.getValue();
@@ -224,7 +229,6 @@ public class NodeStateImpl implements NodeState {
         statefulTaskLagSums.put(task, endOffsetSum - offsetSum);
       }
     }
-    return statefulTaskLagSums;
   }
 
   @Override
@@ -247,5 +251,9 @@ public class NodeStateImpl implements NodeState {
       }
     }
     return prevTasksByLag;
+  }
+
+  public long now() {
+    return now;
   }
 }

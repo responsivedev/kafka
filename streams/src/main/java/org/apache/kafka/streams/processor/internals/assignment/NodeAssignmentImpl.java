@@ -27,21 +27,23 @@ import org.apache.kafka.streams.processor.assignment.NodeAssignment;
 
 public class NodeAssignmentImpl implements NodeAssignment {
 
-  private final UUID processId;
-  private final long now;
+  private final NodeStateImpl nodeState;
   private long followupRebalanceDeadline;
 
   private final Set<TaskId> activeTasks = new HashSet<>();
   private final Set<TaskId> standbyTasks = new HashSet<>();
 
-  public NodeAssignmentImpl(final UUID processId, final long now) {
-    this.processId = processId;
-    this.now = now;
+  public NodeAssignmentImpl(final NodeStateImpl nodeState) {
+    this.nodeState = nodeState;
+  }
+
+  public NodeStateImpl nodeState() {
+    return nodeState;
   }
 
   @Override
   public UUID processId() {
-    return processId;
+    return nodeState.processId();
   }
 
   @Override
@@ -75,8 +77,12 @@ public class NodeAssignmentImpl implements NodeAssignment {
   }
 
   @Override
-  public void requestFollowupRebalance(final Duration rebalanceInterval) {
-    followupRebalanceDeadline = now + validateMillisecondDuration(rebalanceInterval, "rebalanceInterval");
+  public void requestFollowupRebalance(final Duration followupRebalanceDelay) {
+    final long newRebalanceDeadlineMs =
+        nodeState.now() + validateMillisecondDuration(followupRebalanceDelay, "rebalanceInterval");
+    if (newRebalanceDeadlineMs < followupRebalanceDeadline) {
+      followupRebalanceDeadline = newRebalanceDeadlineMs;
+    }
   }
 
   @Override
@@ -84,6 +90,11 @@ public class NodeAssignmentImpl implements NodeAssignment {
     return followupRebalanceDeadline;
   }
 
+  // TODO(KIP-924): finish formatting and write javadocs
+  @Override
+  public String toString() {
+    return processId() + "=" + activeAssignment() + standbyAssignment() + followupRebalanceDeadline();
+  }
 
 }
 

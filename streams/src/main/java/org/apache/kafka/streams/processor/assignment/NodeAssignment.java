@@ -20,11 +20,13 @@ import java.time.Duration;
 import java.util.Set;
 import java.util.UUID;
 import org.apache.kafka.streams.processor.TaskId;
+import org.apache.kafka.streams.processor.internals.StreamThread;
 
 public interface NodeAssignment {
-    UUID processId();
 
-    void assignActive(final TaskId task);
+  UUID processId();
+
+  void assignActive(final TaskId task);
 
   void assignStandby(final TaskId task);
 
@@ -34,12 +36,18 @@ public interface NodeAssignment {
 
   Set<TaskId> activeAssignment();
 
+  Set<TaskId> activeStatefulAssignment();
+
+  Set<TaskId> activeStatelessAssignment();
+
   Set<TaskId> standbyAssignment();
 
   /**
    * Request a followup rebalance to be triggered by one of the consumers on this node after the
-   * given interval has elapsed. This request will be processed only by the node on which the assignor
-   * is currently running, ie the group leader, and not transmitted to every member in the group
+   * given interval has elapsed. The {@link StreamThread} selected for this will be chosen at random.
+   * Only a single StreamThread consumer will be informed when a followup rebalance is requested, and
+   * if invoked multiple times the rebalance will be scheduled according to the shortest delay/nearest
+   * deadline.
    * <p>
    * NOTE: A best effort will be made to enforce a rebalance according to the requested schedule,
    * but there is no guarantee that another rebalance will not occur before this time has elapsed.
@@ -48,19 +56,14 @@ public interface NodeAssignment {
    * is, however, guaranteed to trigger a new rebalance itself, at which point the assignor
    * can re-evaluate whether to request an additional rebalance or not.
    *
-   * @param rebalanceInterval how long this node should wait before initiating a new rebalance
+   * @param followupRebalanceDelay how long this node should wait before initiating a new rebalance
    */
-  void requestFollowupRebalance(final Duration rebalanceInterval);
+  void requestFollowupRebalance(final Duration followupRebalanceDelay);
 
   /**
    * @return the actual deadline in objective time, using ms since the epoch, after which the
-   * followup rebalance will be attempted. Equivalent to {@code }now + rebalanceInterval}
+   * followup rebalance will be attempted. Equivalent to {@code 'now + followupRebalanceDelay'}
    */
   long followupRebalanceDeadline();
-
-  // TODO(KIP-924): finish formatting and write javadocs
-  default String print() {
-    return processId() + "=" + activeAssignment() + standbyAssignment() + followupRebalanceDeadline();
-  }
 
 }

@@ -43,6 +43,9 @@ import java.util.Set;
 public interface TaskAssignor extends Configurable {
   TaskAssignment assign(final ApplicationMetadata applicationMetadata);
 
+  @Override
+  default void configure(final Map<String, ?> configs) {
+  }
 
   /**
    * Wrapper class for the final assignment of active and standbys tasks to individual Streams nodes
@@ -75,7 +78,7 @@ public interface TaskAssignor extends Configurable {
     public String toString() {
       return assignment().stream()
           .sorted(Comparator.comparing(NodeAssignment::processId))
-          .map(NodeAssignment::print)
+          .map(NodeAssignment::toString)
           .collect(Collectors.joining(Utils.NL));
     }
   }

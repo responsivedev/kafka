@@ -16,54 +16,57 @@
  */
 package org.apache.kafka.streams.processor.internals.assignment;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.UUID;
-import org.apache.kafka.clients.admin.Admin;
+import java.util.function.Function;
 import org.apache.kafka.streams.processor.TaskId;
 import org.apache.kafka.streams.processor.assignment.ApplicationMetadata;
 import org.apache.kafka.streams.processor.assignment.NodeAssignment;
 import org.apache.kafka.streams.processor.assignment.NodeState;
-import org.apache.kafka.streams.processor.assignment.TaskAssignorConfigs;
+import org.apache.kafka.streams.processor.assignment.AssignmentConfigs;
 
 public class ApplicationMetadataImpl implements ApplicationMetadata {
 
-    private final Map<UUID, NodeState> nodeStates;
+    private final Map<UUID, NodeStateImpl> nodeStates;
     private final Set<TaskId> allTasks;
     private final Set<TaskId> statefulTasks;
-    private final TaskAssignorConfigs taskAssignorConfigs;
+    private final AssignmentConfigs assignmentConfigs;
 
-    private final Admin adminClient;
+    private final Function<Collection<NodeStateImpl>, Boolean> computeTaskLags;
     private final RackAwareTaskAssignor rackAwareTaskAssignor;
     private final StandbyTaskAssignor standbyTaskAssignor;
 
-    public ApplicationMetadataImpl(final Map<UUID, NodeState> nodeStates,
+    public ApplicationMetadataImpl(final Map<UUID, NodeStateImpl> nodeStates,
                                    final Set<TaskId> allTaskIds,
                                    final Set<TaskId> statefulTaskIds,
-                                   final TaskAssignorConfigs taskAssignorConfigs,
+                                   final AssignmentConfigs assignmentConfigs,
                                    final RackAwareTaskAssignor rackAwareTaskAssignor,
-                                   final Admin adminClient) {
+                                   final Function<Collection<NodeStateImpl>, Boolean> computeTaskLags) {
         this.nodeStates = nodeStates;
         this.allTasks = allTaskIds;
         this.statefulTasks = statefulTaskIds;
-        this.taskAssignorConfigs = taskAssignorConfigs;
-        this.adminClient = adminClient;
+        this.assignmentConfigs = assignmentConfigs;
         this.rackAwareTaskAssignor = rackAwareTaskAssignor;
-        this.standbyTaskAssignor = StandbyTaskAssignorFactory.create(taskAssignorConfigs, rackAwareTaskAssignor);
+        this.computeTaskLags = computeTaskLags;
+        this.standbyTaskAssignor = StandbyTaskAssignorFactory.create(assignmentConfigs, rackAwareTaskAssignor);
     }
 
     @Override
-    public Map<UUID, NodeState> nodeStates(final boolean computeTaskLags) {
-        if (computeTaskLags) {
-            // TODO(KIP-924): extract end offset fetch and lag computation to here
-        }
+    public Map<UUID, ? extends NodeState> nodeStates() {
         return nodeStates;
     }
 
     @Override
-    public TaskAssignorConfigs taskAssignorConfigs() {
-        return taskAssignorConfigs;
+    public boolean computeTaskLags() {
+        return computeTaskLags.apply(nodeStates.values());
+    }
+
+    @Override
+    public AssignmentConfigs assignmentConfigs() {
+        return assignmentConfigs;
     }
 
     @Override
@@ -79,7 +82,7 @@ public class ApplicationMetadataImpl implements ApplicationMetadata {
 
     @Override
     public void defaultStandbyTaskAssignment(final Map<UUID, NodeAssignment> nodeAssignments) {
-        standbyTaskAssignor.assign(nodeAssignments, allTasks(), statefulTasks(), taskAssignorConfigs);
+        standbyTaskAssignor.assign(nodeAssignments, allTasks(), statefulTasks(), assignmentConfigs);
     }
 
     /**
@@ -92,17 +95,17 @@ public class ApplicationMetadataImpl implements ApplicationMetadata {
         rackAwareTaskAssignor.optimizeActiveTasks(
             tasks,
             nodeAssignments,
-            taskAssignorConfigs.trafficCost,
-            taskAssignorConfigs.nonOverlapCost
+            assignmentConfigs.trafficCost(),
+            assignmentConfigs.nonOverlapCost()
         );
     }
 
     @Override
-    public void optimizeRackawareStandbyTasks(final Map<UUID, NodeAssignment> nodeAssignments) {
+    public void optimizeRackAwareStandbyTasks(final Map<UUID, NodeAssignment> nodeAssignments) {
         rackAwareTaskAssignor.optimizeStandbyTasks(
             nodeAssignments,
-            taskAssignorConfigs.trafficCost,
-            taskAssignorConfigs.nonOverlapCost,
+            assignmentConfigs.trafficCost(),
+            assignmentConfigs.nonOverlapCost(),
             standbyTaskAssignor::isAllowedTaskMovement
         );
     }

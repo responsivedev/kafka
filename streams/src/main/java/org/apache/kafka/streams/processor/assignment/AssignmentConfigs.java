@@ -21,16 +21,16 @@ import org.apache.kafka.streams.StreamsConfig;
 
 import java.util.List;
 
-public class TaskAssignorConfigs {
-  public final long acceptableRecoveryLag;
-  public final int maxWarmupReplicas;
-  public final int numStandbyReplicas;
-  public final long probingRebalanceIntervalMs;
-  public final List<String> rackAwareAssignmentStandbyTags;
-  public final int trafficCost;
-  public final int nonOverlapCost;
+public class AssignmentConfigs {
+  private final long acceptableRecoveryLag;
+  private final int maxWarmupReplicas;
+  private final int numStandbyReplicas;
+  private final long probingRebalanceIntervalMs;
+  private final List<String> rackAwareAssignmentStandbyTags;
+  private final int trafficCost;
+  private final int nonOverlapCost;
 
-  public TaskAssignorConfigs(final StreamsConfig configs) {
+  public AssignmentConfigs(final StreamsConfig configs) {
     acceptableRecoveryLag = configs.getLong(StreamsConfig.ACCEPTABLE_RECOVERY_LAG_CONFIG);
     maxWarmupReplicas = configs.getInt(StreamsConfig.MAX_WARMUP_REPLICAS_CONFIG);
     numStandbyReplicas = configs.getInt(StreamsConfig.NUM_STANDBY_REPLICAS_CONFIG);
@@ -40,13 +40,13 @@ public class TaskAssignorConfigs {
     nonOverlapCost = configs.getInt(StreamsConfig.RACK_AWARE_ASSIGNMENT_NON_OVERLAP_COST_CONFIG);
   }
 
-  public TaskAssignorConfigs(final Long acceptableRecoveryLag,
-                             final Integer maxWarmupReplicas,
-                             final Integer numStandbyReplicas,
-                             final Long probingRebalanceIntervalMs,
-                             final List<String> rackAwareAssignmentStandbyTags,
-                             final int trafficCost,
-                             final int nonOverlapCost) {
+  public AssignmentConfigs(final Long acceptableRecoveryLag,
+                           final Integer maxWarmupReplicas,
+                           final Integer numStandbyReplicas,
+                           final Long probingRebalanceIntervalMs,
+                           final List<String> rackAwareAssignmentStandbyTags,
+                           final int trafficCost,
+                           final int nonOverlapCost) {
     this.acceptableRecoveryLag = validated(StreamsConfig.ACCEPTABLE_RECOVERY_LAG_CONFIG, acceptableRecoveryLag);
     this.maxWarmupReplicas = validated(StreamsConfig.MAX_WARMUP_REPLICAS_CONFIG, maxWarmupReplicas);
     this.numStandbyReplicas = validated(StreamsConfig.NUM_STANDBY_REPLICAS_CONFIG, numStandbyReplicas);
@@ -54,6 +54,34 @@ public class TaskAssignorConfigs {
     this.rackAwareAssignmentStandbyTags = validated(StreamsConfig.RACK_AWARE_ASSIGNMENT_TAGS_CONFIG, rackAwareAssignmentStandbyTags);
     this.trafficCost = validated(StreamsConfig.RACK_AWARE_ASSIGNMENT_TRAFFIC_COST_CONFIG, trafficCost);
     this.nonOverlapCost = validated(StreamsConfig.RACK_AWARE_ASSIGNMENT_NON_OVERLAP_COST_CONFIG, nonOverlapCost);
+  }
+
+  public long acceptableRecoveryLag() {
+    return acceptableRecoveryLag;
+  }
+
+  public int maxWarmupReplicas() {
+    return maxWarmupReplicas;
+  }
+
+  public int numStandbyReplicas() {
+    return numStandbyReplicas;
+  }
+
+  public long probingRebalanceIntervalMs() {
+    return probingRebalanceIntervalMs;
+  }
+
+  public List<String> rackAwareAssignmentStandbyTags() {
+    return rackAwareAssignmentStandbyTags;
+  }
+
+  public int trafficCost() {
+    return trafficCost;
+  }
+
+  public int nonOverlapCost() {
+    return nonOverlapCost;
   }
 
   private static <T> T validated(final String configKey, final T value) {

@@ -17,8 +17,11 @@
 package org.apache.kafka.streams.processor.internals.assignment;
 
 import org.apache.kafka.streams.processor.TaskId;
+import org.apache.kafka.streams.processor.assignment.ApplicationMetadata;
+import org.apache.kafka.streams.processor.assignment.AssignmentConfigs;
+import org.apache.kafka.streams.processor.assignment.NodeState;
+import org.apache.kafka.streams.processor.assignment.TaskAssignor;
 import org.apache.kafka.streams.processor.internals.Task;
-import org.apache.kafka.streams.processor.internals.assignment.AssignorConfiguration.AssignmentConfigs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,12 +48,18 @@ public class HighAvailabilityTaskAssignor implements TaskAssignor {
     private static final Logger log = LoggerFactory.getLogger(HighAvailabilityTaskAssignor.class);
 
     @Override
-    public boolean assign(final Map<UUID, ClientState> clients,
-                          final Set<TaskId> allTaskIds,
-                          final Set<TaskId> statefulTaskIds,
-                          final AssignmentConfigs configs) {
-        final SortedSet<TaskId> statefulTasks = new TreeSet<>(statefulTaskIds);
-        final TreeMap<UUID, ClientState> clientStates = new TreeMap<>(clients);
+    public TaskAssignment assign(final ApplicationMetadata applicationMetadata) {
+        final boolean lagComputationSuccessful = applicationMetadata.computeTaskLags();
+        if (lagComputationSuccessful) {
+            log.info("Lag computation failed for HA assignor, this is not a fatal error but will cause the assignor"
+                         + "to fallback to a naive sticky algorithm");
+            return new StickyTaskAssignor(true).assign(applicationMetadata);
+        }
+
+        final Set<TaskId> allTaskIds = applicationMetadata.allTasks();
+        final AssignmentConfigs configs = applicationMetadata.assignmentConfigs();
+        final SortedSet<TaskId> statefulTasks = new TreeSet<>(applicationMetadata.statefulTasks());
+        final TreeMap<UUID, ClientState> clientStates = new TreeMap<>(applicationMetadata.nodeStates());
 
         assignActiveStatefulTasks(clientStates, statefulTasks);
 
@@ -61,12 +70,12 @@ public class HighAvailabilityTaskAssignor implements TaskAssignor {
             configs
         );
 
-        final AtomicInteger remainingWarmupReplicas = new AtomicInteger(configs.maxWarmupReplicas);
+        final AtomicInteger remainingWarmupReplicas = new AtomicInteger(configs.maxWarmupReplicas());
 
         final Map<TaskId, SortedSet<UUID>> tasksToCaughtUpClients = tasksToCaughtUpClients(
             statefulTasks,
             clientStates,
-            configs.acceptableRecoveryLag
+            configs.acceptableRecoveryLag()
         );
 
         final Map<TaskId, SortedSet<UUID>> tasksToClientByLag = tasksToClientByLag(statefulTasks, clientStates);
